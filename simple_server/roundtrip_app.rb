@@ -69,6 +69,14 @@ class WebServer < Reel::Server::HTTP
     super(host, port, &method(:on_connection))
   end
 
+  def process_rolling_restart
+    info 'Got SigTerm'
+    # how to tell?
+    info 'Telling all connection through socket not to call anymore'
+    # maybe using FSM?
+    info 'Update status'
+  end
+
   def on_connection(connection)
     while request = connection.request
       if request.websocket?
@@ -163,5 +171,10 @@ end
 
 RoundtripServer.supervise_as :roundtrip_server
 WebServer.supervise_as :reel
+Signal.trap('SIGTERM') do
+  Thread.new do
+    Celluloid::Actor[:reel].process_rolling_restart
+  end
+end
 
 sleep
