@@ -3,6 +3,7 @@ require 'bundler/setup'
 require 'celluloid/autostart'
 require 'reel'
 
+POOL_SIZE = 2
 class SocketHandler
   include Celluloid
   include Celluloid::Logger
@@ -21,7 +22,7 @@ class SocketHandler
         info 'done'
       end
     end
-  rescue Reel::SocketError, EOFError
+  rescue
     info 'client disconnect somehow'
     socket.close
   end
@@ -36,15 +37,29 @@ class MyServer < Reel::Server::HTTP
 
   def initialize(host = "127.0.0.1", port = 3000)
     super(host, port, &method(:on_connection))
-    @pool = SocketHandler.pool(size: 2)
+    @pool = SocketHandler.pool(size: POOL_SIZE)
+    @flag = 'normal'
+  end
+
+  def normal?
+    @flag == 'normal'
+  end
+
+  def restarting?
+    @flag == 'restarting'
   end
 
   def notify_rolling_restart
     info 'got SIGTERM'
-    @pool.notify_rolling_restart
-    # @pool.actors.each do |actor|
-    #   actor.notify_rolling_restart
-    # end
+    @flag = 'restarting'
+
+    #@pool.notify_rolling_restart
+    @pool.actors.each do |actor|
+      info 'notify actor'
+      info actor
+      actor.notify_rolling_restart
+    end
+    info 'done notify rolling restart'
   end
 
   def on_connection(connection)
