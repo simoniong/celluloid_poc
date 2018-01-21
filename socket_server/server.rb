@@ -41,4 +41,10 @@ end
 GameBackend.supervise_as :game_backend
 WebServer.supervise_as :web
 
+# Signal.trap('SIGTERM') do
+#   Thread.new do
+#     Celluloid::Actor[:web].notify_rolling_restart
+#   end
+# end
+
 sleep
