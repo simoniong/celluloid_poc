@@ -2,8 +2,13 @@ require 'rubygems'
 require 'bundler/setup'
 require 'reel'
 require 'json'
+require 'celluloid/autostart'
 
-class WebServer < Reel::Server
+POOL_SIZE = 2
+require_relative './lib/game_backend'
+require_relative './lib/socket_handler'
+
+class WebServer < Reel::Server::HTTP
   include Celluloid::Logger
 
   def initialize(host = "127.0.0.1", port = 3000)
@@ -12,14 +17,14 @@ class WebServer < Reel::Server
   end
 
   def on_connection(connection)
-    while request = connection.request
-      case request
-      when Reel::Request
-        route_request connection, request
-      when Reel::WebSocket
-        info "Received a WebSocket connection"
-        route_websocket request
-      end
+    request = connection.request
+    if request.websocket?
+      info "Received a WebSocket connection"
+      socket = request.websocket
+      socket << "welcome to socket world!"
+      route_websocket socket
+    else
+      route_request connection, request
     end
   end
 
@@ -29,15 +34,11 @@ class WebServer < Reel::Server
   end
 
   def route_websocket(socket)
-    if socket.url == "/games"
-      SocketHandler.new(socket)
-    else
-      info "Received invalid WebSocket request for: #{socket.url}"
-      socket.close
-    end
+    SocketHandler.new(socket)
   end
 end
 
-WebServer.supervise_as :reel
+GameBackend.supervise_as :game_backend
+WebServer.supervise_as :web
 
 sleep
