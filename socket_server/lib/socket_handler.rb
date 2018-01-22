@@ -6,7 +6,7 @@ class SocketHandler
   def initialize(websocket)
     info "Streaming socket to socket handler"
     @socket = websocket
-    reader = SocketReader.new(@socket)
+    reader = SocketReader.new_link(@socket)
     # NOTED:
     # we need to use async way with bang
     # so that this actor can continue to subscribe events
@@ -27,9 +27,19 @@ class SocketHandler
 
   def write(action, payload)
     @socket << JSON.generate({ action: action, payload: payload })
-  rescue Reel::SocketError
+  rescue 
     info "Client disconnected"
+    # we need to termniate the actor by ourself
     terminate
+  end
+
+  # we link SocketReader, here's the handler
+  # while socketreader have error
+  # example error: client disconnect
+  trap_exit :actor_dead
+  def actor_dead(actor, reason)
+    info "Oh no! #{actor.inspect} has died because of a #{reason.class}"
+    @socket.close
   end
 
   class SocketReader
@@ -49,8 +59,9 @@ class SocketHandler
     end
 
     def handle_message(data)
-      data = JSON.parse(data) if data != ''
-      info "decode json result: #{data}"
+      # data = JSON.parse(data) if data != ''
+      # info "decode json result: #{data}"
+      info "receive: #{data}"
       publish 'incoming_api', data
     end
   end
