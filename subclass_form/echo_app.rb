@@ -3,7 +3,7 @@ require 'bundler/setup'
 require 'celluloid/autostart'
 require 'reel'
 
-POOL_SIZE = 2
+POOL_SIZE = 1000
 class SocketHandler
   include Celluloid
   include Celluloid::Logger
@@ -38,6 +38,7 @@ class MyServer < Reel::Server::HTTP
   def initialize(host = "127.0.0.1", port = 3000)
     super(host, port, &method(:on_connection))
     @pool = SocketHandler.pool(size: POOL_SIZE)
+    @connection = []
     @flag = 'normal'
   end
 
@@ -53,11 +54,10 @@ class MyServer < Reel::Server::HTTP
     info 'got SIGTERM'
     @flag = 'restarting'
 
-    #@pool.notify_rolling_restart
-    @pool.actors.each do |actor|
-      info 'notify actor'
-      info actor
-      actor.notify_rolling_restart
+    @connection.each do |socket|
+      info 'notify rolling restart'
+      # TODO: connection should be abstract as a class
+      socket << "notify rolling restart"
     end
     info 'done notify rolling restart'
   end
@@ -67,6 +67,8 @@ class MyServer < Reel::Server::HTTP
       info 'running each_request'
       if request.websocket?
         socket = request.websocket
+        @connection << socket
+
         socket << "welcome to socket world"
         @pool.handle socket
         info 'finished handling websocket'
