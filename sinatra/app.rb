@@ -72,7 +72,7 @@ class App < Sinatra::Base
     puts 'notify subscriber to restarting'
     self.settings.restarting.push("restarting")
     puts 'done'
-    super
+    quit!
   end
 end
 
