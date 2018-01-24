@@ -68,11 +68,13 @@ class App < Sinatra::Base
   end
 
   trap('TERM') do
-    puts 'info: Got SIGTERM singal'
-    puts 'notify subscriber to restarting'
-    self.settings.restarting.push("restarting")
-    puts 'done'
-    quit!
+    Thread.new do
+      puts 'info: Got SIGTERM singal'
+      puts 'notify subscriber to restarting'
+      self.settings.restarting.push("restarting")
+      puts 'done'
+      quit!
+    end
   end
 end
 
